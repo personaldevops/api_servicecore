@@ -2,15 +2,15 @@ import importlib
 import os
 import re
 from pathlib import Path
-
+from typing import List
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Response, Request, Header
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import ORJSONResponse
 from starlette.middleware.cors import CORSMiddleware
+from aioprometheus import REGISTRY, render
 
 app = FastAPI(default_response_class=ORJSONResponse)
-
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 origins = ['http://0.0.0.0:8080', 'http://0.0.0.0', 'http://0.0.0.0:8080/', 'http://localhost:8080', 'http://localhost',
            'http://localhost:8080/', 'http://127.0.0.1:8080', 'http://127.0.0.1', 'http://127.0.0.1:8080/']
@@ -19,6 +19,15 @@ app.add_middleware(CORSMiddleware,
                    allow_methods=["*"],
                    allow_headers=["*"],
                    allow_credentials=True)
+
+
+@app.get("/metrics")
+async def handle_metrics(
+        request: Request,  # pylint: disable=unused-argument
+        accept: List[str] = Header(None),
+) -> Response:
+    content, http_headers = render(REGISTRY, accept)
+    return Response(content=content, media_type=http_headers["Content-Type"])
 
 
 class APIServiceRequest:
